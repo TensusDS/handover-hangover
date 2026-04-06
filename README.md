@@ -1,2 +1,2 @@
 # Handover Hangover
-Handover Hangover is a OpenClaw plugin for smooth switch between models, solving problem of lost track and context of your agent
+Handover Hangover is a OpenClaw skill for smooth switch between models, solving problem of lost track and context of your agent
