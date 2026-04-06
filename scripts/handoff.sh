@@ -10,11 +10,13 @@
 #
 # Three scenarios:
 #   1. handoff-note.md exists        -> previous model wrote it (CONFIRMED)
-#      No signal — model was healthy. Archive only.
 #   2. no note, but .prev.md exists  -> DIRTY SWITCH (model failed to write)
-#      Creates .handoff-pending signal for the incoming model.
 #   3. no note, no .prev.md          -> INIT (first run ever)
-#      Creates .handoff-pending signal for the incoming model.
+#
+# All three paths create .handoff-pending ("baton available").
+# The model's read-side then checks the baton author:
+#   - same model  -> cheap early-exit, no full reboot
+#   - different model or script-generated -> full read-side with epistemic reset
 #
 
 set -euo pipefail
@@ -155,16 +157,17 @@ EOF
 rm -f "$HANDOFF_SIGNAL"
 
 if [ -f "$HANDOFF_NOTE" ]; then
-    # Previous model wrote a handoff note — archive it for the next model.
-    # No signal: CONFIRMED means the model was functioning normally.
-    # If a switch happened despite the note existing, Indicators 2/3
-    # in SKILL.md (context mismatch / error signals) will catch it.
+    # Previous model wrote a handoff note — archive it as the baton.
+    # Signal is always created so the incoming model checks it.
+    # Model-side early-exit: if the baton author matches the current model,
+    # it skips the heavy read-side (same model continuing = no switch).
     log "model-written handoff confirmed"
     mv -f "$HANDOFF_NOTE" "$HANDOFF_PREV"
+    touch "$HANDOFF_SIGNAL"
 
 elif [ -f "$HANDOFF_PREV" ]; then
     # No note but .prev.md exists — the model failed to write (DIRTY SWITCH).
-    # Signal the incoming model: this is an anomaly requiring read-side.
+    # Generate a mechanical fallback so the next model has something.
     log "WARNING: dirty switch — no handoff-note found, generating fallback"
     generate_fallback "Possible model switch or continuity break. Previous model did not write a handoff note. Data below is mechanical only."
     mv -f "$HANDOFF_NOTE" "$HANDOFF_PREV"

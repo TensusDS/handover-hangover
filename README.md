@@ -61,11 +61,11 @@ The skill activates automatically (`always: true`) — no configuration needed.
 - **Three-channel reliability.** System prompt (policy) + filesystem (state) + bash watchdog (enforcement). Each channel compensates for the others' failure modes. The prompt tells the model what to do; the filesystem stores the result; the watchdog guarantees the result exists. Pattern borrowed from `context-anchor`.
 - **Extend, don't invent.** Uses existing OpenClaw files and conventions (`memory/current-task.md`, `memory/YYYY-MM-DD.md`, `memoryFlush` pattern). The only new files are `memory/handoff-note.md` and `scripts/handoff.sh`.
 - **Bias toward false positives.** Better to re-read state unnecessarily than to assume continuity that doesn't exist.
-- **Zero overhead when not switching.** Detection returns "no" → read-side doesn't run → invisible no-op. Write-side and watchdog run regardless but double as useful compaction insurance.
+- **Low overhead when not switching.** Every turn performs a cheap baton check (one file read + author comparison). Same-model continuations early-exit without a full reboot; full read-side runs only on actual model change or fallback recovery. Write-side and watchdog run regardless but double as useful compaction insurance.
 
 ## Status
 
-**v1.0.0 released.** Core skill (`SKILL.md`) and bash watchdog (`scripts/handoff.sh`) are implemented and tested.
+**v1.0.2** — core skill (`SKILL.md`) and bash watchdog (`scripts/handoff.sh`) are implemented and tested.
 
 See the [open issues](https://github.com/tensusds/handover-hangover/issues) for current progress.
 
