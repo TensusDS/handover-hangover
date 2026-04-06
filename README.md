@@ -20,7 +20,7 @@ Handover Hangover is a **three-channel** OpenClaw skill (`always: true`) that us
 
 - **Channel 1: System prompt** (`SKILL.md`) — tells the model *what* to write and *when*
 - **Channel 2: Filesystem** (`memory/handoff-note.md`, `memory/current-task.md`) — stores the handoff data
-- **Channel 3: Bash watchdog** (`scripts/handoff.sh`) — guarantees the data *exists*, even if the model didn't follow instructions
+- **Channel 3: Bash watchdog** (`scripts/handoff.sh`) — guarantees the data *exists* at session boundaries, even if the model didn't follow instructions. Requires integration into your boot sequence or heartbeat (see [Integration](#integration))
 
 ### Four responsibilities
 
@@ -30,7 +30,7 @@ Handover Hangover is a **three-channel** OpenClaw skill (`always: true`) that us
 
 **Read-side:** when a handoff is detected, the incoming model reads the baton, performs an epistemic reset, verifies tool state, and continues work without asking "where were we?"
 
-**Watchdog:** a bash script runs at the start of every turn. If the previous model wrote a handoff note — great. If not — the script generates a mechanical fallback from filesystem state. Even if the model ignores every prompt instruction, the next model still gets *something* to work with.
+**Watchdog:** a bash script that checks whether a handoff note exists and generates a mechanical fallback if not. Wire it into your boot sequence and/or heartbeat — OpenClaw does not auto-execute skill scripts. Even if the model ignores every prompt instruction, the next session still gets *something* to work with.
 
 ## Installation
 
@@ -40,7 +40,47 @@ Copy to your OpenClaw skills directory:
 git clone https://github.com/tensusds/handover-hangover.git ~/.openclaw/workspace/skills/handover-hangover
 ```
 
-The skill activates automatically (`always: true`) — no configuration needed.
+If you installed via ClawHub instead of git clone, restore the execute bit (ClawHub does not preserve it):
+
+```bash
+chmod +x ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
+```
+
+The prompt layer activates automatically (`always: true`). The watchdog script requires integration — see below.
+
+## Integration
+
+OpenClaw skills are prompt-injected — `SKILL.md` loads automatically with `always: true`. But the watchdog script requires explicit wiring into your agent lifecycle.
+
+### Boot sequence (recommended)
+
+Add to `AGENTS.md`, after the existing boot steps:
+
+```bash
+# Handover Hangover — archive/generate baton for incoming model
+WORKSPACE=~/.openclaw/workspace bash ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
+```
+
+This runs once per session start and covers the most common handoff scenario: a new session after a model switch.
+
+### Heartbeat (optional, stronger coverage)
+
+Add to `HEARTBEAT.md`:
+
+```bash
+# Handover Hangover — periodic baton refresh
+WORKSPACE=~/.openclaw/workspace bash ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
+```
+
+This catches mid-session switches that happen between session restarts (~30 min resolution).
+
+### What each layer covers
+
+| Layer | Trigger | Covers |
+|-------|---------|--------|
+| `SKILL.md` (`always: true`) | Every turn | Detection + write-side + read-side protocol |
+| Boot sequence | Session start | Watchdog: baton exists at session boundary |
+| Heartbeat | ~30 min | Watchdog: catches mid-session dirty switches |
 
 ## Requirements
 
@@ -58,7 +98,7 @@ The skill activates automatically (`always: true`) — no configuration needed.
 
 ## Design principles
 
-- **Three-channel reliability.** System prompt (policy) + filesystem (state) + bash watchdog (enforcement). Each channel compensates for the others' failure modes. The prompt tells the model what to do; the filesystem stores the result; the watchdog guarantees the result exists. Pattern borrowed from `context-anchor`.
+- **Three-channel reliability.** System prompt (policy) + filesystem (state) + bash watchdog (enforcement). Each channel compensates for the others' failure modes. The prompt tells the model what to do; the filesystem stores the result; the watchdog guarantees the result exists at session boundaries (see [Integration](#integration)). Pattern borrowed from `context-anchor`.
 - **Extend, don't invent.** Uses existing OpenClaw files and conventions (`memory/current-task.md`, `memory/YYYY-MM-DD.md`, `memoryFlush` pattern). The only new files are `memory/handoff-note.md` and `scripts/handoff.sh`.
 - **Bias toward false positives.** Better to re-read state unnecessarily than to assume continuity that doesn't exist.
 - **Low overhead when not switching.** Every turn performs a cheap baton check (one file read + author comparison). Same-model continuations early-exit without a full reboot; full read-side runs only on actual model change or fallback recovery. Write-side and watchdog run regardless but double as useful compaction insurance.

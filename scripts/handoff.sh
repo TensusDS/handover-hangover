@@ -5,8 +5,9 @@
 # Guarantees a handoff note exists for the incoming model, even if
 # the previous model didn't follow prompt instructions.
 #
-# Runs at the start of every turn, before the model receives control.
-# Execution order: handoff.sh -> anchor.sh -> model
+# Integration: add to AGENTS.md boot sequence and/or HEARTBEAT.md.
+# OpenClaw does not auto-execute skill scripts — this must be wired
+# explicitly. See README.md for details.
 #
 # Three scenarios:
 #   1. handoff-note.md exists        -> previous model wrote it (CONFIRMED)

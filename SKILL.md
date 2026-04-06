@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.0.2
+version: 1.0.3
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.
@@ -17,6 +17,9 @@ metadata:
         - memory/handoff-note.prev.md
         - memory/.handoff-pending
         - memory/current-task.md
+    requires:
+      bins:
+        - bash
 ---
 
 # Handover Hangover
@@ -127,7 +130,7 @@ Read `memory/handoff-note.prev.md`. This was written for you — either by the p
 
 If the author is a **different model** or the note contains `script-generated fallback` — a switch occurred. Continue with step 2. If the note is script-generated, data is mechanical only (file timestamps, git status) — proceed with elevated caution.
 
-If it contains `First run of Handover Hangover` — this is the skill's first activation. Skip to step 6 and announce:
+If it contains `First run of Handover Hangover` — this is the skill's first activation. Verify the watchdog is executable (`chmod +x scripts/handoff.sh` if needed — ClawHub does not preserve the execute bit). Then skip to step 6 and announce:
 > Handover Hangover skill is now active. Handoff continuity is enabled for your fallback chain. No configuration needed.
 
 ### Step 2 — Re-run boot sequence
