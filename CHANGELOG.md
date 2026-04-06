@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0] — 2026-04-06
+
+### Changed
+- Watchdog refactored to idempotent semantics — safe for frequent execution (heartbeat, cron, afterTurn hooks)
+- Four-scenario logic: CONFIRMED / NO-OP / DIRTY SWITCH / INIT
+- Integration section rewritten: `afterTurn` hook (primary) + boot (baseline) + heartbeat (safety net)
+
+### Added
+- Sealed marker (`.handoff-sealed`) — internal watchdog state that prevents repeated fallback generation on the same boundary
+- `memory/.handoff-sealed` added to `writePaths` in SKILL.md frontmatter
+- `afterTurn` hook wiring example in README
+
+### Fixed
+- Repeated watchdog runs no longer destroy good baton with mechanical fallback
+- `find` in `recent_changes()` wrapped with `timeout 5` to prevent hanging on large workspaces
+
 ## [1.0.3] — 2026-04-06
 
 ### Fixed

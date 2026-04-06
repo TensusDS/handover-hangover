@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.0.3
+version: 1.1.0
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.
@@ -16,6 +16,7 @@ metadata:
         - memory/handoff-note.md
         - memory/handoff-note.prev.md
         - memory/.handoff-pending
+        - memory/.handoff-sealed
         - memory/current-task.md
     requires:
       bins:
@@ -30,7 +31,7 @@ This skill ensures two things:
 1. **You leave a trail** — so the next model can pick up where you left off.
 2. **You check for a handoff** — so if YOU are the next model, you recover cleanly.
 
-A watchdog script (`scripts/handoff.sh`) runs before every turn as a safety net. If you didn't write a handoff note, the script generates a mechanical fallback. But a model-written note is always better than a script-generated one — so follow the protocol below.
+A watchdog script (`scripts/handoff.sh`) acts as a safety net at session boundaries. It is idempotent — safe for boot, heartbeat, afterTurn hooks, and cron. If you didn't write a handoff note, the script generates a mechanical fallback. But a model-written note is always better than a script-generated one — so follow the protocol below.
 
 ---
 
