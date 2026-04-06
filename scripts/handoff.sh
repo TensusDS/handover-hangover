@@ -10,8 +10,11 @@
 #
 # Three scenarios:
 #   1. handoff-note.md exists        -> previous model wrote it (CONFIRMED)
+#      No signal — model was healthy. Archive only.
 #   2. no note, but .prev.md exists  -> DIRTY SWITCH (model failed to write)
+#      Creates .handoff-pending signal for the incoming model.
 #   3. no note, no .prev.md          -> INIT (first run ever)
+#      Creates .handoff-pending signal for the incoming model.
 #
 
 set -euo pipefail
@@ -24,6 +27,7 @@ WORKSPACE="${WORKSPACE:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 MEMORY_DIR="$WORKSPACE/memory"
 HANDOFF_NOTE="$MEMORY_DIR/handoff-note.md"
 HANDOFF_PREV="$MEMORY_DIR/handoff-note.prev.md"
+HANDOFF_SIGNAL="$MEMORY_DIR/.handoff-pending"
 CURRENT_TASK="$MEMORY_DIR/current-task.md"
 LOG_PREFIX="[handover-hangover]"
 
@@ -146,20 +150,31 @@ EOF
 # Main
 # ---------------------------------------------------------------------------
 
+# Clean up stale signal from previous turn (model should have deleted it,
+# but if it didn't, we don't want it lingering as a false positive).
+rm -f "$HANDOFF_SIGNAL"
+
 if [ -f "$HANDOFF_NOTE" ]; then
-    # Previous model wrote a handoff note — archive it for the next model
+    # Previous model wrote a handoff note — archive it for the next model.
+    # No signal: CONFIRMED means the model was functioning normally.
+    # If a switch happened despite the note existing, Indicators 2/3
+    # in SKILL.md (context mismatch / error signals) will catch it.
     log "model-written handoff confirmed"
     mv -f "$HANDOFF_NOTE" "$HANDOFF_PREV"
 
 elif [ -f "$HANDOFF_PREV" ]; then
-    # No note but .prev.md exists — the model failed to write (DIRTY SWITCH)
+    # No note but .prev.md exists — the model failed to write (DIRTY SWITCH).
+    # Signal the incoming model: this is an anomaly requiring read-side.
     log "WARNING: dirty switch — no handoff-note found, generating fallback"
     generate_fallback "Possible model switch or continuity break. Previous model did not write a handoff note. Data below is mechanical only."
     mv -f "$HANDOFF_NOTE" "$HANDOFF_PREV"
+    touch "$HANDOFF_SIGNAL"
 
 else
-    # No note, no prev — first time this skill runs (INIT)
+    # No note, no prev — first time this skill runs (INIT).
+    # Signal the incoming model to run bootstrap.
     log "INIT: first run, creating bootstrap note"
     generate_fallback "First run of Handover Hangover. No prior handoff history."
     mv -f "$HANDOFF_NOTE" "$HANDOFF_PREV"
+    touch "$HANDOFF_SIGNAL"
 fi

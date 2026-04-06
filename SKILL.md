@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.0.0
+version: 1.0.1
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.
@@ -15,6 +15,7 @@ metadata:
       writePaths:
         - memory/handoff-note.md
         - memory/handoff-note.prev.md
+        - memory/.handoff-pending
         - memory/current-task.md
 ---
 
@@ -88,7 +89,7 @@ Possible model switch or continuity break. Read before assuming anything.
 --- written by <your-model-name> at <UTC timestamp>
 ~~~
 
-Also update `memory/current-task.md` and append to today's daily log (`memory/YYYY-MM-DD.md`) per standard convention.
+Update `memory/current-task.md` when the task itself changes — not on every state-changing moment. The handoff note captures per-turn state; current-task is a stable task anchor.
 
 ---
 
@@ -96,8 +97,8 @@ Also update `memory/current-task.md` and append to today's daily log (`memory/YY
 
 At the **start of every turn**, evaluate three indicators. Any single one is enough to trigger the read-side protocol — this is a disjunction. Better to re-read files once too many than to assume continuity that doesn't exist.
 
-**Indicator 1 — Fresh handoff note.**
-`memory/handoff-note.prev.md` exists and contains a `# Handoff Note` header. The watchdog archives notes here at turn start. If this file is present, someone wrote a baton for you.
+**Indicator 1 — Handoff signal.**
+`memory/.handoff-pending` exists. The watchdog creates this file only when it detects an anomaly: either first run (INIT) or the previous model failed to write a handoff note (DIRTY SWITCH). In the normal case (model wrote a note, CONFIRMED), no signal is created — Indicators 2 and 3 cover clean switches.
 
 **Indicator 2 — Task/context mismatch.**
 `memory/current-task.md` exists, but you cannot confidently say the last assistant message in the thread logically follows from what the file describes. If connecting them requires a stretch — it's a mismatch.
@@ -125,7 +126,7 @@ If it contains `First run of Handover Hangover` — this is the skill's first ac
 > Handover Hangover skill is now active. Handoff continuity is enabled for your fallback chain. No configuration needed.
 
 ### Step 2 — Re-run boot sequence
-Re-read these files as if starting fresh: `AGENTS.md` (steps 2-7), `SOUL.md`, `SELF.md`, `USER.md`, today's `memory/YYYY-MM-DD.md`, `memory/current-task.md`, `MEMORY.md`. The previous model read them at session start. You need them again — your working memory is empty.
+Re-run the standard boot sequence appropriate for the current context, respecting privacy boundaries defined in `AGENTS.md`. At minimum, re-read: `memory/current-task.md` and today's `memory/YYYY-MM-DD.md`. The previous model read boot files at session start. You need them again — your working memory is empty.
 
 ### Step 3 — Epistemic reset
 
@@ -146,11 +147,12 @@ Before executing any tool call, consult the `## Tool state` section of the hando
 - If the next step matches `open verification` — run a **read-only** check first.
 - **Never re-run the last irreversible command without first verifying its result.**
 
-### Step 5 — Sign the baton
+### Step 5 — Sign the baton and clear signal
 Append one line to `memory/handoff-note.prev.md`:
 ```
 --- received by <your-model-name> at <UTC timestamp>
 ```
+Then delete `memory/.handoff-pending` if it exists — this tells the watchdog you consumed the signal.
 
 ### Step 6 — Continue work
 Use the handoff note and current-task as your authoritative source for what to do next. Do **not** ask the user "where were we?" — that is an indicator of failure.
@@ -159,8 +161,7 @@ Use the handoff note and current-task as your authoritative source for what to d
 
 ## Security
 
-- **DO NOT** read or write files outside `memory/` for handoff purposes.
 - **DO NOT** read `~/.openclaw/openclaw.json` — it contains live secrets.
 - **DO NOT** read or modify files belonging to other skills.
-- Write targets: `memory/handoff-note.md`, `memory/current-task.md`, `memory/YYYY-MM-DD.md`.
-- Read targets: `memory/*`, `AGENTS.md`, `SOUL.md`, `SELF.md`, `USER.md`, `MEMORY.md`.
+- **Handoff persistence** (write-side, watchdog): only `memory/` directory. Write targets: `memory/handoff-note.md`, `memory/handoff-note.prev.md`, `memory/.handoff-pending`, `memory/current-task.md`.
+- **Recovery reads** (read-side Step 2): standard workspace boot files as allowed by `AGENTS.md` privacy boundaries for the current context. At minimum: `memory/*`.
