@@ -105,7 +105,7 @@ This catches mid-session switches that happen between session restarts (~30 min 
 
 ## Status
 
-**v1.0.2** — core skill (`SKILL.md`) and bash watchdog (`scripts/handoff.sh`) are implemented and tested.
+**v1.0.3** — core skill (`SKILL.md`) and bash watchdog (`scripts/handoff.sh`) are implemented and tested.
 
 See the [open issues](https://github.com/tensusds/handover-hangover/issues) for current progress.
 
