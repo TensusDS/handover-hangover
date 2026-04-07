@@ -16,11 +16,11 @@ OpenClaw agents run on a fallback chain — when the primary model is unavailabl
 
 ## How it works
 
-Handover Hangover is a **three-channel** OpenClaw skill (`always: true`) that uses layered defense to guarantee handoff continuity even when one channel fails:
+Handover Hangover is a **three-channel** OpenClaw skill (`always: true`) that uses layered defense to ensure handoff continuity even when one channel fails:
 
 - **Channel 1: System prompt** (`SKILL.md`) — tells the model *what* to write and *when*
 - **Channel 2: Filesystem** (`memory/handoff-note.md`, `memory/current-task.md`) — stores the handoff data
-- **Channel 3: Bash watchdog** (`scripts/handoff.sh`) — guarantees the data *exists*, even if the model didn't follow instructions. Idempotent — safe for boot, heartbeat, hooks, and cron. Requires explicit integration (see [Integration](#integration))
+- **Channel 3: Bash watchdog** (`scripts/handoff.sh`) — ensures the data *exists*, even if the model didn't follow instructions. Idempotent — safe for boot, heartbeat, hooks, and cron. Requires explicit integration (see [Integration](#integration))
 
 ### Four responsibilities
 
@@ -52,7 +52,7 @@ The prompt layer activates automatically (`always: true`). The watchdog script r
 
 OpenClaw skills are prompt-injected — `SKILL.md` loads automatically with `always: true`. But the watchdog script requires explicit wiring into your agent lifecycle. The watchdog is idempotent — repeated runs without a new handoff note are safe no-ops.
 
-### `afterTurn` hook (recommended — per-turn coverage)
+### `afterTurn` hook (per-turn coverage)
 
 Create or symlink the hook:
 
@@ -62,7 +62,7 @@ ln -sf ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh \
        ~/.openclaw/hooks/afterTurn/handover-hangover.sh
 ```
 
-This runs after every agent turn, giving maximum coverage: the baton is archived immediately after the model writes it.
+This runs after every agent turn, giving the tightest coverage window. Whether this is the best primary integration depends on your hook setup and execution budget.
 
 ### Boot sequence (baseline)
 
@@ -92,7 +92,7 @@ Catches edge cases missed by boot and hooks (~30 min resolution). Safe for any h
 |-------|---------|--------|
 | `SKILL.md` (`always: true`) | Every turn | Detection + write-side + read-side protocol |
 | `afterTurn` hook | Every turn | Baton archival immediately after model writes |
-| Boot sequence | Session start | Baseline baton guarantee at session boundary |
+| Boot sequence | Session start | Baseline baton check at session boundary |
 | Heartbeat | ~30 min | Coarse repair / periodic validation |
 
 ## Requirements
@@ -111,14 +111,14 @@ Catches edge cases missed by boot and hooks (~30 min resolution). Safe for any h
 
 ## Design principles
 
-- **Three-channel reliability.** System prompt (policy) + filesystem (state) + bash watchdog (enforcement). Each channel compensates for the others' failure modes. The prompt tells the model what to do; the filesystem stores the result; the watchdog guarantees the result exists — from per-turn hooks to session boundaries (see [Integration](#integration)). Pattern borrowed from `context-anchor`.
+- **Three-channel reliability.** System prompt (policy) + filesystem (state) + bash watchdog (enforcement). Each channel compensates for the others' failure modes. The prompt tells the model what to do; the filesystem stores the result; the watchdog ensures the result exists — from per-turn hooks to session boundaries (see [Integration](#integration)). Pattern borrowed from `context-anchor`.
 - **Extend, don't invent.** Uses existing OpenClaw files and conventions (`memory/current-task.md`, `memory/YYYY-MM-DD.md`, `memoryFlush` pattern). The only new files are `memory/handoff-note.md` and `scripts/handoff.sh`.
 - **Bias toward false positives.** Better to re-read state unnecessarily than to assume continuity that doesn't exist.
 - **Low overhead when not switching.** Every turn performs a cheap baton check (one file read + author comparison). Same-model continuations early-exit without a full reboot; full read-side runs only on actual model change or fallback recovery. Write-side and watchdog run regardless but double as useful compaction insurance.
 
 ## Status
 
-**v1.1.0** — core skill (`SKILL.md`) and idempotent bash watchdog (`scripts/handoff.sh`) are implemented and tested.
+**v1.1.1** — core skill (`SKILL.md`) and idempotent bash watchdog (`scripts/handoff.sh`) are implemented and tested.
 
 See the [open issues](https://github.com/tensusds/handover-hangover/issues) for current progress.
 

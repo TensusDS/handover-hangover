@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1] — 2026-04-07
+
+### Changed
+- WORKSPACE path resolution: added comment and dev-copy warning (Ronin review)
+- README: softened "guarantee" to "ensure", afterTurn hook to neutral tone (Ronin review)
+
 ## [1.1.0] — 2026-04-06
 
 ### Changed

@@ -33,7 +33,18 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 
+# Default WORKSPACE: 3 levels up from scripts/ → skill root → skills/ → workspace.
+# Correct for installed copy at ~/.openclaw/workspace/skills/handover-hangover/.
+# For repo/dev copies, pass WORKSPACE explicitly:
+#   WORKSPACE=~/.openclaw/workspace bash scripts/handoff.sh
 WORKSPACE="${WORKSPACE:-$(cd "$(dirname "$0")/../../.." && pwd)}"
+
+# Warn if resolved path doesn't look like an OpenClaw workspace (but don't abort —
+# the script still works for testing with an explicit WORKSPACE).
+if [ ! -d "$WORKSPACE/skills" ] && [ ! -d "$WORKSPACE/agents" ]; then
+    echo "[handover-hangover] WARNING: WORKSPACE=$WORKSPACE does not look like an OpenClaw workspace (no skills/ or agents/ dir). Set WORKSPACE explicitly if needed." >&2
+fi
+
 MEMORY_DIR="$WORKSPACE/memory"
 HANDOFF_NOTE="$MEMORY_DIR/handoff-note.md"
 HANDOFF_PREV="$MEMORY_DIR/handoff-note.prev.md"
