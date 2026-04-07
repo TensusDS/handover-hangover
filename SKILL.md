@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.1.1
+version: 1.1.2
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.

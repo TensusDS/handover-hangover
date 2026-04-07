@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] — 2026-04-07
+
+### Changed
+- INIT bootstrap note no longer includes noisy workspace-wide file list and git status (Ronin live-test feedback)
+
 ## [1.1.1] — 2026-04-07
 
 ### Changed
