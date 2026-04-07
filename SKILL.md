@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.1.2
+version: 1.1.3
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.
@@ -18,6 +18,7 @@ metadata:
         - memory/.handoff-pending
         - memory/.handoff-sealed
         - memory/current-task.md
+    homepage: https://github.com/tensusds/handover-hangover
     requires:
       bins:
         - bash

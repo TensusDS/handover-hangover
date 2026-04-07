@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3] — 2026-04-07
+
+### Changed
+- License: MIT → MIT-0 (ClawHub publishing requirement — uniform licensing)
+- `.clawhubignore`: exclude CLAUDE.md and `.claude/` from published bundle
+- Added `homepage` metadata to SKILL.md frontmatter
+
 ## [1.1.2] — 2026-04-07
 
 ### Changed

@@ -118,10 +118,10 @@ Catches edge cases missed by boot and hooks (~30 min resolution). Safe for any h
 
 ## Status
 
-**v1.1.2** — core skill (`SKILL.md`) and idempotent bash watchdog (`scripts/handoff.sh`) are implemented and tested.
+**v1.1.3** — core skill (`SKILL.md`) and idempotent bash watchdog (`scripts/handoff.sh`) are implemented and tested.
 
 See the [open issues](https://github.com/tensusds/handover-hangover/issues) for current progress.
 
 ## License
 
-[MIT](LICENSE) &copy; 2026 TensusDS
+[MIT-0](LICENSE) &copy; 2026 TensusDS
