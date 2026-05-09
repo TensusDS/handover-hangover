@@ -1,6 +1,6 @@
 ---
 name: handover-hangover
-version: 1.1.3
+version: 1.2.0
 description: >
   Seamless model handoff for OpenClaw agents. Ensures continuity when
   the gateway switches to a fallback model mid-session.
@@ -18,8 +18,7 @@ metadata:
         - memory/.handoff-pending
         - memory/.handoff-sealed
         - memory/current-task.md
-    homepage: https://github.com/tensusds/handover-hangover
-    requires:
+        requires:
       bins:
         - bash
 ---
@@ -32,7 +31,9 @@ This skill ensures two things:
 1. **You leave a trail** — so the next model can pick up where you left off.
 2. **You check for a handoff** — so if YOU are the next model, you recover cleanly.
 
-A watchdog script (`scripts/handoff.sh`) acts as a safety net at session boundaries. It is idempotent — safe for boot, heartbeat, afterTurn hooks, and cron. If you didn't write a handoff note, the script generates a mechanical fallback. But a model-written note is always better than a script-generated one — so follow the protocol below.
+A watchdog script (`scripts/handoff.sh`) acts as a safety net at session boundaries. It is idempotent — safe for boot, heartbeat, hooks, and cron. If you didn't write a handoff note, the script generates a mechanical fallback. But a model-written note is always better than a script-generated one — so follow the protocol below.
+
+**Integration drift rule.** Do not assume `always: true` runs shell scripts. It only gives the model the protocol. The watchdog must be wired through one of the shipped integration layers: the managed hook pack (`hooks/handover-hangover`), boot/heartbeat snippets, or a manual call. If you are asked to diagnose or harden this skill, run `scripts/status.sh` first and `scripts/install-integration.sh` when the user wants the local installation fixed.
 
 ---
 
@@ -103,7 +104,7 @@ Update `memory/current-task.md` when the task itself changes — not on every st
 At the **start of every turn**, evaluate three indicators. Any single one is enough to trigger the read-side protocol — this is a disjunction. Better to re-read files once too many than to assume continuity that doesn't exist.
 
 **Indicator 1 — Handoff signal.**
-`memory/.handoff-pending` exists. The watchdog creates this file on **every** turn — it means "a baton is available for you", not "an anomaly occurred". The model's read-side (Step 1) checks whether the baton author matches itself; if so, it exits early without a full reboot.
+`memory/.handoff-pending` exists. The watchdog creates this file at configured lifecycle boundaries (for example `message:received`, session start, boot, heartbeat, or manual execution) — it means "a baton is available for you", not "an anomaly occurred". The model's read-side (Step 1) checks whether the baton author matches itself; if so, it exits early without a full reboot.
 
 **Indicator 2 — Task/context mismatch.**
 `memory/current-task.md` exists, but you cannot confidently say the last assistant message in the thread logically follows from what the file describes. If connecting them requires a stretch — it's a mismatch.
@@ -132,8 +133,19 @@ Read `memory/handoff-note.prev.md`. This was written for you — either by the p
 
 If the author is a **different model** or the note contains `script-generated fallback` — a switch occurred. Continue with step 2. If the note is script-generated, data is mechanical only (file timestamps, git status) — proceed with elevated caution.
 
-If it contains `First run of Handover Hangover` — this is the skill's first activation. Verify the watchdog is executable (`chmod +x scripts/handoff.sh` if needed — ClawHub does not preserve the execute bit). Then skip to step 6 and announce:
-> Handover Hangover skill is now active. Handoff continuity is enabled for your fallback chain. No configuration needed.
+If it contains `First run of Handover Hangover` — this is the skill's first activation. Verify the watchdog is executable (`chmod +x scripts/handoff.sh` if needed — some installers do not preserve execute bits). Then check integration status if tools are available:
+
+```bash
+bash ~/.openclaw/workspace/skills/handover-hangover/scripts/status.sh
+```
+
+If the managed hook is not installed/enabled and the user wants durable protection, run:
+
+```bash
+bash ~/.openclaw/workspace/skills/handover-hangover/scripts/install-integration.sh
+```
+
+Then skip to step 6 and announce whether hook integration is active or whether only prompt/manual fallback is available.
 
 ### Step 2 — Re-run boot sequence
 Re-run the standard boot sequence appropriate for the current context, respecting privacy boundaries defined in `AGENTS.md`. At minimum, re-read: `memory/current-task.md` and today's `memory/YYYY-MM-DD.md`. The previous model read boot files at session start. You need them again — your working memory is empty.

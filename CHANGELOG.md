@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0] — 2026-05-09
+
+### Added
+- Managed OpenClaw hook pack under `hooks/handover-hangover/` (`HOOK.md` + `handler.js`).
+- `scripts/install-integration.sh` to install/enable the managed hook and print fallback snippets.
+- `scripts/status.sh` to diagnose watchdog executable state, managed hook install state, hook config, and memory baton files.
+- Next-turn lifecycle coverage via `message:received`, plus `/new`, `/reset`, and `gateway:startup` boundaries.
+
+### Changed
+- README integration now targets the current OpenClaw hook system first, with boot/heartbeat as version-tolerant fallbacks.
+- SKILL.md now explicitly treats hook/API drift as expected and tells agents how to diagnose/install integration.
+- Integration language is model/provider agnostic; Codex, Anthropic, Gemini, local models, and manual model switches are all treated as interpreter handoffs over the same filesystem baton.
+
+### Fixed
+- ClawHub users no longer have to infer obsolete `afterTurn` wiring from README examples.
+- Watchdog automation no longer depends on undocumented ad-hoc hook directories.
+
 ## [1.1.3] — 2026-04-07
 
 ### Changed

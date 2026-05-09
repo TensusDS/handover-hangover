@@ -30,70 +30,92 @@ Handover Hangover is a **three-channel** OpenClaw skill (`always: true`) that us
 
 **Read-side:** when a handoff is detected, the incoming model reads the baton, performs an epistemic reset, verifies tool state, and continues work without asking "where were we?"
 
-**Watchdog:** an idempotent bash script that checks whether a handoff note exists and generates a mechanical fallback if not. Safe for any execution frequency — repeated runs without a new note are no-ops. Wire it into your `afterTurn` hook (per-turn coverage) and/or boot sequence. See [Integration](#integration).
+**Watchdog:** an idempotent bash script that checks whether a handoff note exists and generates a mechanical fallback if not. Safe for any execution frequency — repeated runs without a new note are no-ops. Wire it through the managed hook pack, boot sequence, heartbeat, or manual scheduler. See [Integration](#integration).
 
 ## Installation
 
 Copy to your OpenClaw skills directory:
 
 ```bash
-git clone https://github.com/tensusds/handover-hangover.git ~/.openclaw/workspace/skills/handover-hangover
+clawhub install handover-hangover
 ```
 
-If you installed via ClawHub instead of git clone, restore the execute bit (ClawHub does not preserve it):
+If your installer does not preserve executable bits, restore them:
 
 ```bash
-chmod +x ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
+chmod +x ~/.openclaw/workspace/skills/handover-hangover/scripts/*.sh
 ```
 
-The prompt layer activates automatically (`always: true`). The watchdog script requires integration — see below.
+The prompt layer activates automatically (`always: true`). The watchdog script requires integration — run the installer below for the current OpenClaw hook system, or use the fallback snippets for older versions.
 
 ## Integration
 
-OpenClaw skills are prompt-injected — `SKILL.md` loads automatically with `always: true`. But the watchdog script requires explicit wiring into your agent lifecycle. The watchdog is idempotent — repeated runs without a new handoff note are safe no-ops.
+OpenClaw skills are prompt-injected — `SKILL.md` gives the model the handoff protocol. Shell scripts do **not** run automatically just because a skill has `always: true`, so Handover Hangover ships multiple integration layers. They are intentionally redundant and version-tolerant.
 
-### `afterTurn` hook (per-turn coverage)
+### Recommended: managed hook installer
 
-Create or symlink the hook:
+Run once after installing or updating the skill:
 
 ```bash
-mkdir -p ~/.openclaw/hooks/afterTurn
-ln -sf ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh \
-       ~/.openclaw/hooks/afterTurn/handover-hangover.sh
+bash ~/.openclaw/workspace/skills/handover-hangover/scripts/install-integration.sh
 ```
 
-This runs after every agent turn, giving the tightest coverage window. Whether this is the best primary integration depends on your hook setup and execution budget.
+What it does:
 
-### Boot sequence (baseline)
+1. Copies a managed hook pack to `~/.openclaw/hooks/handover-hangover/`.
+2. Copies `handoff.sh` next to the hook handler so it survives skill path/layout differences.
+3. Enables the hook with `openclaw hooks enable handover-hangover` when the hooks CLI is available.
+4. Prints fallback snippets for older OpenClaw versions.
 
-Add to `AGENTS.md`, after the existing boot steps:
+Restart the Gateway after enabling hooks so the handler is loaded.
+
+### Why the hook is `message:received`, not only `afterTurn`
+
+OpenClaw hook APIs changed over time. Some versions expose command/startup hooks, some expose plugin-level `agent_end`, and older notes often mention ad-hoc `afterTurn` directories. To avoid binding the skill to one OpenClaw release, the shipped managed hook runs at **next-turn boundaries**:
+
+- `message:received` — before the next model acts, so a switched-in model sees `.handoff-pending` before doing work.
+- `command:new` / `command:reset` — explicit session boundaries.
+- `gateway:startup` — process restarts and upgrades.
+
+This gives the important guarantee: the incoming model checks the baton before it continues. It is provider/model agnostic and works across fallback chains, manual model changes, and Gateway restarts.
+
+### Status check
+
+```bash
+bash ~/.openclaw/workspace/skills/handover-hangover/scripts/status.sh
+```
+
+This reports whether the watchdog is executable, whether the managed hook is installed, and whether OpenClaw has the hook enabled.
+
+### Fallback: boot sequence
+
+If hook discovery is unavailable, add this to `AGENTS.md`, after the existing boot steps:
 
 ```bash
 # Handover Hangover — archive/generate baton for incoming model
 WORKSPACE=~/.openclaw/workspace bash ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
 ```
 
-This runs once per session start and covers the most common handoff scenario: a new session after a model switch.
+### Fallback: heartbeat / scheduler
 
-### Heartbeat (safety net)
-
-Add to `HEARTBEAT.md`:
+Add to `HEARTBEAT.md`, cron, or any periodic scheduler:
 
 ```bash
 # Handover Hangover — periodic baton validation
 WORKSPACE=~/.openclaw/workspace bash ~/.openclaw/workspace/skills/handover-hangover/scripts/handoff.sh
 ```
 
-Catches edge cases missed by boot and hooks (~30 min resolution). Safe for any heartbeat frequency.
+The watchdog is idempotent. Running it at startup, before turns, on heartbeat, or manually is safe.
 
 ### What each layer covers
 
 | Layer | Trigger | Covers |
 |-------|---------|--------|
-| `SKILL.md` (`always: true`) | Every turn | Detection + write-side + read-side protocol |
-| `afterTurn` hook | Every turn | Baton archival immediately after model writes |
+| `SKILL.md` (`always: true`) | Prompt context | Detection + write-side + read-side protocol |
+| Managed hook pack | `message:received`, `/new`, `/reset`, startup | Next-turn baton archival/generation before the model acts |
 | Boot sequence | Session start | Baseline baton check at session boundary |
-| Heartbeat | ~30 min | Coarse repair / periodic validation |
+| Heartbeat/scheduler | Periodic | Coarse repair if hooks are unavailable |
+| Manual `handoff.sh` | Operator/model action | Emergency recovery and diagnostics |
 
 ## Requirements
 
@@ -118,10 +140,8 @@ Catches edge cases missed by boot and hooks (~30 min resolution). Safe for any h
 
 ## Status
 
-**v1.1.3** — core skill (`SKILL.md`) and idempotent bash watchdog (`scripts/handoff.sh`) are implemented and tested.
-
-See the [open issues](https://github.com/tensusds/handover-hangover/issues) for current progress.
+**v1.2.0** — adds managed OpenClaw hook-pack integration, installer/status scripts, and version-tolerant next-turn watchdog coverage.
 
 ## License
 
-[MIT-0](LICENSE) &copy; 2026 TensusDS
+[MIT-0](LICENSE) &copy; 2026 Handover Hangover contributors
