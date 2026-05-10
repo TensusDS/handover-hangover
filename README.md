@@ -140,7 +140,7 @@ The watchdog is idempotent. Running it at startup, before turns, on heartbeat, o
 
 ## Status
 
-**v1.2.0** — adds managed OpenClaw hook-pack integration, installer/status scripts, and version-tolerant next-turn watchdog coverage.
+**v1.2.1** — hardens managed hook execution: direct shebang launch, executable-bit self-repair, and lower ClawHub scanner friction around shell execution.
 
 ## License
 

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -39,13 +39,13 @@ function candidateScripts(workspaceDir) {
   const candidates = [
     // Hook-pack install copies handoff.sh next to handler.js.
     path.join(__dirname, "handoff.sh"),
-    // Linked from the skill repo: hooks/handover-hangover -> ../../scripts/handoff.sh.
-    path.resolve(__dirname, "..", "..", "scripts", "handoff.sh"),
   ];
   if (workspaceDir) {
     candidates.push(path.join(workspaceDir, "skills", HOOK_NAME, "scripts", "handoff.sh"));
   }
   candidates.push(path.join(os.homedir(), ".openclaw", "workspace", "skills", HOOK_NAME, "scripts", "handoff.sh"));
+  // Dev/repo fallback when the handler is run directly from a checkout.
+  candidates.push(path.resolve(__dirname, "..", "..", "scripts", "handoff.sh"));
   return [...new Set(candidates)];
 }
 
@@ -59,6 +59,23 @@ function findScript(workspaceDir) {
   return undefined;
 }
 
+function ensureExecutable(scriptPath) {
+  try {
+    fs.accessSync(scriptPath, fs.constants.X_OK);
+    return true;
+  } catch {}
+
+  try {
+    const stat = fs.statSync(scriptPath);
+    const nextMode = stat.mode | 0o111;
+    if (nextMode !== stat.mode) fs.chmodSync(scriptPath, nextMode);
+    fs.accessSync(scriptPath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function shouldRun(event) {
   if (!event || typeof event.type !== "string") return false;
   if (event.type === "message" && event.action === "received") return true;
@@ -69,33 +86,51 @@ function shouldRun(event) {
 
 function runWatchdog(scriptPath, workspaceDir) {
   return new Promise((resolve) => {
-    const child = spawn("bash", [scriptPath], {
-      env: { ...process.env, WORKSPACE: workspaceDir },
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: false,
-    });
-    let stdout = "";
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-    }, 5000);
-    child.stdout?.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      console.warn(`[${HOOK_NAME}] watchdog spawn failed: ${error.message}`);
+    if (!ensureExecutable(scriptPath)) {
+      console.warn(`[${HOOK_NAME}] watchdog script is not executable: ${scriptPath}`);
       resolve();
-    });
-    child.on("close", (code, signal) => {
-      clearTimeout(timer);
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const child = execFile(scriptPath, {
+      env: { ...process.env, WORKSPACE: workspaceDir },
+      timeout: 5000,
+      killSignal: "SIGTERM",
+      windowsHide: true,
+    }, (error, stdout, stderr) => {
       const out = stdout.trim();
       const err = stderr.trim();
-      if (code === 0) {
+
+      if (!error) {
         if (out) console.log(`[${HOOK_NAME}] ${out.split("\n").slice(-1)[0]}`);
-      } else {
-        console.warn(`[${HOOK_NAME}] watchdog exited code=${code} signal=${signal ?? "none"}${err ? `: ${err}` : ""}`);
+        finish();
+        return;
       }
-      resolve();
+
+      if (error.killed && error.signal === "SIGTERM") {
+        console.warn(`[${HOOK_NAME}] watchdog exited code=${error.code ?? "timeout"} signal=SIGTERM${err ? `: ${err}` : ""}`);
+        finish();
+        return;
+      }
+
+      if (error.code === "EACCES") {
+        console.warn(`[${HOOK_NAME}] watchdog not executable: ${scriptPath}`);
+      } else {
+        console.warn(`[${HOOK_NAME}] watchdog exited code=${error.code ?? "unknown"} signal=${error.signal ?? "none"}${err ? `: ${err}` : error.message ? `: ${error.message}` : ""}`);
+      }
+      finish();
+    });
+
+    child.on("error", (error) => {
+      console.warn(`[${HOOK_NAME}] watchdog spawn failed: ${error.message}`);
+      finish();
     });
   });
 }

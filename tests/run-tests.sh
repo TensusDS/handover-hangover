@@ -86,6 +86,19 @@ assert_file "$ws/memory/.handoff-pending"
 assert_file "$ws/memory/handoff-note.prev.md"
 pass "managed hook message:received invokes watchdog"
 
+# Managed hook: restores executable bit and runs direct script execution path.
+ws="$(make_workspace hook-nonexec)"
+mkdir -p "$ws/skills/handover-hangover/scripts"
+cp "$ROOT/scripts/handoff.sh" "$ws/skills/handover-hangover/scripts/handoff.sh"
+chmod 0644 "$ws/skills/handover-hangover/scripts/handoff.sh"
+node --input-type=module <<NODE
+import hook from '$ROOT/hooks/handover-hangover/handler.js';
+await hook({ type: 'message', action: 'received', context: { workspaceDir: '$ws', cfg: {} } });
+NODE
+assert_file "$ws/memory/.handoff-pending"
+[ -x "$ws/skills/handover-hangover/scripts/handoff.sh" ] || fail "hook did not restore executable bit"
+pass "managed hook restores executable bit for direct execution"
+
 # Managed hook ignores unrelated events.
 ws="$(make_workspace hook-ignore)"
 node --input-type=module <<NODE

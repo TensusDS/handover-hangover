@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.2.1] — 2026-05-10
+
+### Changed
+- Managed hook now executes `handoff.sh` directly via its shebang instead of launching `bash` explicitly from `child_process`.
+- Hook performs a best-effort executable-bit repair before launch so updated installs continue working even if older copies of `handoff.sh` lost `+x`.
+
+### Fixed
+- Reduced ClawHub scanner exposure around explicit shell execution in `hooks/handover-hangover/handler.js` without changing runtime behavior.
+
 ## [1.2.0] — 2026-05-09
 
 ### Added
